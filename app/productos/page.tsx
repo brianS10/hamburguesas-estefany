@@ -5,6 +5,8 @@ import Image from 'next/image';
 import { Producto, Categoria } from '@/types';
 import { supabase } from '@/lib/supabase';
 
+const EMOJIS_DISPONIBLES = ['🍔', '🍗', '🌮', '🌯', '🥤', '🍟', '🍕', '🌭', '🥗', '🍰', '🍦', '☕', '🧃', '🥪', '🍱', '🍳', '🍽️'];
+
 export default function PaginaProductos() {
   const [productos, setProductos] = useState<Producto[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
@@ -130,11 +132,27 @@ export default function PaginaProductos() {
     }
   };
 
-  const obtenerEmoji = (nombre: string) => {
+  const obtenerEmoji = (nombreCat: string) => {
+    if (!nombreCat) return '🍽️';
+    for (const emoji of EMOJIS_DISPONIBLES) {
+      if (nombreCat.startsWith(emoji)) {
+        return emoji;
+      }
+    }
     const emojis: Record<string, string> = {
       'Hamburguesas': '🍔', 'Alitas': '🍗', 'Tacos': '🌮', 'Bebidas': '🥤', 'Extras': '🍟'
     };
-    return emojis[nombre] || '🍽️';
+    return emojis[nombreCat] || '🍽️';
+  };
+
+  const obtenerNombreSinEmoji = (nombreCat: string) => {
+    if (!nombreCat) return '';
+    for (const emoji of EMOJIS_DISPONIBLES) {
+      if (nombreCat.startsWith(emoji)) {
+        return nombreCat.slice(emoji.length).trim();
+      }
+    }
+    return nombreCat;
   };
 
   if (cargando) return (
@@ -182,7 +200,7 @@ export default function PaginaProductos() {
             <label>Categoría</label>
             <select value={categoriaId} onChange={(e) => setCategoriaId(Number(e.target.value))}>
               {categorias.map(cat => (
-                <option key={cat.id} value={cat.id}>{obtenerEmoji(cat.nombre)} {cat.nombre}</option>
+                <option key={cat.id} value={cat.id}>{obtenerEmoji(cat.nombre)} {obtenerNombreSinEmoji(cat.nombre)}</option>
               ))}
             </select>
           </div>
@@ -233,7 +251,7 @@ export default function PaginaProductos() {
                           className="prod-edit-select"
                         >
                           {categorias.map(cat => (
-                            <option key={cat.id} value={cat.id}>{cat.nombre}</option>
+                            <option key={cat.id} value={cat.id}>{obtenerEmoji(cat.nombre)} {obtenerNombreSinEmoji(cat.nombre)}</option>
                           ))}
                         </select>
                       </div>
@@ -254,7 +272,7 @@ export default function PaginaProductos() {
                       <span className="prod-card-emoji">{obtenerEmoji(prod.categorias?.nombre || '')}</span>
                       <div className="prod-card-data">
                         <span className="prod-card-name">{prod.nombre}</span>
-                        <span className="prod-card-cat">{prod.categorias?.nombre || 'Sin categoría'}</span>
+                        <span className="prod-card-cat">{obtenerEmoji(prod.categorias?.nombre || '')} {obtenerNombreSinEmoji(prod.categorias?.nombre || '')}</span>
                       </div>
                       <span className="prod-card-price">${prod.precio}</span>
                     </div>

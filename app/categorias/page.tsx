@@ -39,6 +39,8 @@ export default function PaginaCategorias() {
   const [cargando, setCargando] = useState(true);
   const [editandoId, setEditandoId] = useState<number | null>(null);
   const [nombreEditando, setNombreEditando] = useState('');
+  const [emojiEditando, setEmojiEditando] = useState('🍽️');
+  const [mostrarEmojisEdit, setMostrarEmojisEdit] = useState(false);
 
   useEffect(() => { cargarCategorias(); }, []);
 
@@ -54,7 +56,11 @@ export default function PaginaCategorias() {
       return;
     }
     setGuardando(true);
-    const { error } = await supabase.from('categorias').insert({ nombre: nombre.trim() });
+    
+    // Incluir el emoji seleccionado en el nombre
+    const nombreConEmoji = emojiSeleccionado + ' ' + nombre.trim();
+    
+    const { error } = await supabase.from('categorias').insert({ nombre: nombreConEmoji });
     if (error) alert('❌ Error: ' + error.message);
     else {
       setNombre('');
@@ -66,16 +72,24 @@ export default function PaginaCategorias() {
 
   const iniciarEdicion = (cat: Categoria) => {
     setEditandoId(cat.id);
-    setNombreEditando(cat.nombre);
+    setEmojiEditando(obtenerEmoji(cat.nombre));
+    setNombreEditando(obtenerNombreSinEmoji(cat.nombre));
+    setMostrarEmojisEdit(false);
   };
 
   const guardarEdicion = async () => {
     if (!nombreEditando.trim() || !editandoId) return;
-    const { error } = await supabase.from('categorias').update({ nombre: nombreEditando.trim() }).eq('id', editandoId);
+    
+    // Guardar con el emoji editado
+    const nombreConEmoji = emojiEditando + ' ' + nombreEditando.trim();
+    
+    const { error } = await supabase.from('categorias').update({ nombre: nombreConEmoji }).eq('id', editandoId);
     if (error) alert('❌ Error: ' + error.message);
     else {
       setEditandoId(null);
       setNombreEditando('');
+      setEmojiEditando('🍽️');
+      setMostrarEmojisEdit(false);
       cargarCategorias();
     }
   };
@@ -95,13 +109,29 @@ export default function PaginaCategorias() {
     else cargarCategorias();
   };
 
-  const obtenerEmoji = (nombre: string) => {
+  const obtenerEmoji = (nombreCat: string) => {
+    // Primero buscar si el nombre empieza con un emoji de los disponibles
+    for (const { emoji } of EMOJIS_DISPONIBLES) {
+      if (nombreCat.startsWith(emoji)) {
+        return emoji;
+      }
+    }
+    // Fallback a emojis por nombre
     const emojis: Record<string, string> = {
       'Hamburguesas': '🍔', 'Alitas': '🍗', 'Tacos': '🌮', 'Bebidas': '🥤', 'Extras': '🍟',
       'Postres': '🍰', 'Ensaladas': '🥗', 'Combos': '🍱', 'Desayunos': '🍳', 'Pizza': '🍕',
       'Hot Dogs': '🌭', 'Burritos': '🌯', 'Café': '☕', 'Jugos': '🧃'
     };
-    return emojis[nombre] || '🍽️';
+    return emojis[nombreCat] || '🍽️';
+  };
+
+  const obtenerNombreSinEmoji = (nombreCat: string) => {
+    for (const { emoji } of EMOJIS_DISPONIBLES) {
+      if (nombreCat.startsWith(emoji)) {
+        return nombreCat.slice(emoji.length).trim();
+      }
+    }
+    return nombreCat;
   };
 
   if (cargando) return (
@@ -174,26 +204,52 @@ export default function PaginaCategorias() {
                 
                 {editandoId === cat.id ? (
                   <div className="cat-card-edit">
-                    <input
-                      type="text"
-                      value={nombreEditando}
-                      onChange={(e) => setNombreEditando(e.target.value)}
-                      className="cat-edit-input"
-                      autoFocus
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') guardarEdicion();
-                        if (e.key === 'Escape') setEditandoId(null);
-                      }}
-                    />
+                    <div className="cat-edit-row">
+                      <button 
+                        type="button" 
+                        className="cat-emoji-btn"
+                        onClick={() => setMostrarEmojisEdit(!mostrarEmojisEdit)}
+                      >
+                        {emojiEditando}
+                      </button>
+                      <input
+                        type="text"
+                        value={nombreEditando}
+                        onChange={(e) => setNombreEditando(e.target.value)}
+                        className="cat-edit-input"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') guardarEdicion();
+                          if (e.key === 'Escape') setEditandoId(null);
+                        }}
+                      />
+                    </div>
+                    {mostrarEmojisEdit && (
+                      <div className="cat-emoji-grid">
+                        {EMOJIS_DISPONIBLES.map(({ emoji }) => (
+                          <button
+                            key={emoji}
+                            type="button"
+                            className={`emoji-opt-sm ${emojiEditando === emoji ? 'selected' : ''}`}
+                            onClick={() => {
+                              setEmojiEditando(emoji);
+                              setMostrarEmojisEdit(false);
+                            }}
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                     <div className="cat-edit-btns">
-                      <button onClick={guardarEdicion} className="cat-btn-save">✓</button>
+                      <button onClick={guardarEdicion} className="cat-btn-save">✓ Guardar</button>
                       <button onClick={() => setEditandoId(null)} className="cat-btn-cancel">✕</button>
                     </div>
                   </div>
                 ) : (
                   <>
                     <div className="cat-card-info">
-                      <span className="cat-card-name">{cat.nombre}</span>
+                      <span className="cat-card-name">{obtenerNombreSinEmoji(cat.nombre)}</span>
                       <span className="cat-card-id">ID: {cat.id}</span>
                     </div>
                     <div className="cat-card-actions">
