@@ -1,9 +1,19 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { Producto, Categoria, ItemCarrito } from '@/types';
 import { supabase } from '@/lib/supabase';
+import {
+  guardarVentaOffline,
+  sincronizarVentas,
+  hayConexion,
+  cachearProductos,
+  cachearCategorias,
+  obtenerProductosOffline,
+  obtenerCategoriasOffline,
+  contarVentasPendientes,
+} from '@/lib/offlineDB';
 
 export default function PaginaPrincipal() {
   const [productos, setProductos] = useState<Producto[]>([]);
@@ -15,30 +25,92 @@ export default function PaginaPrincipal() {
   const [cargando, setCargando] = useState(true);
   const [metodoPago, setMetodoPago] = useState<'Efectivo' | 'Tarjeta' | 'Transferencia'>('Efectivo');
   const [mostrarCarrito, setMostrarCarrito] = useState(false);
+  const [ventaExitosa, setVentaExitosa] = useState<{ total: number; cambio: number; offline?: boolean } | null>(null);
+  const [online, setOnline] = useState(true);
+  const [ventasPendientes, setVentasPendientes] = useState(0);
+  const [sincronizando, setSincronizando] = useState(false);
 
-  // Cargar productos y categorías al iniciar
+  // Verificar conexión
   useEffect(() => {
-    cargarDatos();
+    setOnline(hayConexion());
+    
+    const handleOnline = () => {
+      setOnline(true);
+      sincronizarPendientes();
+    };
+    const handleOffline = () => setOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
   }, []);
+
+  // Cargar datos
+  useEffect(() => { 
+    cargarDatos(); 
+    actualizarContadorPendientes();
+  }, []);
+
+  const actualizarContadorPendientes = async () => {
+    const count = await contarVentasPendientes();
+    setVentasPendientes(count);
+  };
+
+  const sincronizarPendientes = useCallback(async () => {
+    if (sincronizando || !hayConexion()) return;
+    
+    setSincronizando(true);
+    try {
+      const { sincronizadas, errores } = await sincronizarVentas();
+      if (sincronizadas > 0) {
+        console.log(`✅ ${sincronizadas} ventas sincronizadas`);
+      }
+      if (errores > 0) {
+        console.log(`⚠️ ${errores} ventas con error`);
+      }
+      await actualizarContadorPendientes();
+    } catch (error) {
+      console.error('Error sincronizando:', error);
+    } finally {
+      setSincronizando(false);
+    }
+  }, [sincronizando]);
 
   const cargarDatos = async () => {
     try {
-      // Cargar categorías
-      const { data: cats } = await supabase
-        .from('categorias')
-        .select('*')
-        .order('id');
-      
-      // Cargar productos
-      const { data: prods } = await supabase
-        .from('productos')
-        .select('*, categorias(nombre)')
-        .order('nombre');
+      if (hayConexion()) {
+        // Cargar de Supabase
+        const { data: cats } = await supabase.from('categorias').select('*').order('id');
+        const { data: prods } = await supabase.from('productos').select('*, categorias(nombre)').order('nombre');
+        
+        setCategorias(cats || []);
+        setProductos(prods || []);
 
-      setCategorias(cats || []);
-      setProductos(prods || []);
+        // Guardar en cache offline
+        if (cats) await cachearCategorias(cats);
+        if (prods) await cachearProductos(prods);
+
+        // Sincronizar ventas pendientes
+        sincronizarPendientes();
+      } else {
+        // Cargar de cache offline
+        const cats = await obtenerCategoriasOffline();
+        const prods = await obtenerProductosOffline();
+        
+        setCategorias(cats);
+        setProductos(prods);
+      }
     } catch (error) {
       console.error('Error al cargar datos:', error);
+      // Intentar cargar de cache
+      const cats = await obtenerCategoriasOffline();
+      const prods = await obtenerProductosOffline();
+      setCategorias(cats);
+      setProductos(prods);
     } finally {
       setCargando(false);
     }
@@ -93,45 +165,72 @@ export default function PaginaPrincipal() {
     }
 
     setGuardando(true);
-    try {
-      // Guardar venta en Supabase
-      const { data: venta, error: errorVenta } = await supabase
-        .from('ventas')
-        .insert({
-          total_venta: totalVenta,
-          pago_con: metodoPago === 'Efectivo' ? efectivo : totalVenta,
-          cambio: metodoPago === 'Efectivo' ? cambio : 0,
-          metodo_pago: metodoPago
-        })
-        .select()
-        .single();
-
-      if (errorVenta) throw errorVenta;
-
-      // Guardar detalles de la venta
-      const detalles = carrito.map(item => ({
-        venta_id: venta.id,
+    
+    const ventaData = {
+      total_venta: totalVenta,
+      pago_con: metodoPago === 'Efectivo' ? efectivo : totalVenta,
+      cambio: metodoPago === 'Efectivo' ? cambio : 0,
+      metodo_pago: metodoPago,
+      fecha: new Date().toISOString(),
+      detalles: carrito.map(item => ({
         producto_id: item.producto.id,
         cantidad: item.cantidad,
         precio_unitario: item.producto.precio
-      }));
+      }))
+    };
 
-      const { error: errorDetalles } = await supabase
-        .from('detalle_ventas')
-        .insert(detalles);
+    try {
+      if (hayConexion()) {
+        // Guardar en Supabase
+        const { data: venta, error: errorVenta } = await supabase
+          .from('ventas')
+          .insert({
+            total_venta: ventaData.total_venta,
+            pago_con: ventaData.pago_con,
+            cambio: ventaData.cambio,
+            metodo_pago: ventaData.metodo_pago
+          })
+          .select()
+          .single();
 
-      if (errorDetalles) throw errorDetalles;
+        if (errorVenta) throw errorVenta;
 
-      // Mostrar ticket
-      const ticket = carrito.map(i => `${i.cantidad}x ${i.producto.nombre} = $${i.subtotal}`).join('\n');
-      alert(`✅ ¡VENTA EXITOSA!\n\n${ticket}\n\n💰 Total: $${totalVenta}\n💵 Pagó: $${metodoPago === 'Efectivo' ? efectivo : totalVenta}\n🔄 Cambio: $${metodoPago === 'Efectivo' ? cambio.toFixed(2) : '0.00'}`);
+        const detalles = ventaData.detalles.map(d => ({
+          venta_id: venta.id,
+          producto_id: d.producto_id,
+          cantidad: d.cantidad,
+          precio_unitario: d.precio_unitario
+        }));
+
+        const { error: errorDetalles } = await supabase.from('detalle_ventas').insert(detalles);
+        if (errorDetalles) throw errorDetalles;
+
+        setVentaExitosa({ total: totalVenta, cambio: metodoPago === 'Efectivo' ? cambio : 0 });
+      } else {
+        // Guardar offline
+        await guardarVentaOffline(ventaData);
+        await actualizarContadorPendientes();
+        setVentaExitosa({ total: totalVenta, cambio: metodoPago === 'Efectivo' ? cambio : 0, offline: true });
+      }
       
       setCarrito([]);
       setEfectivoRecibido('');
       setMostrarCarrito(false);
+      setTimeout(() => setVentaExitosa(null), 3500);
     } catch (error) {
       console.error('Error:', error);
-      alert('❌ Error al guardar');
+      // Si falla, guardar offline
+      try {
+        await guardarVentaOffline(ventaData);
+        await actualizarContadorPendientes();
+        setVentaExitosa({ total: totalVenta, cambio: metodoPago === 'Efectivo' ? cambio : 0, offline: true });
+        setCarrito([]);
+        setEfectivoRecibido('');
+        setMostrarCarrito(false);
+        setTimeout(() => setVentaExitosa(null), 3500);
+      } catch (offlineError) {
+        alert('❌ Error al guardar la venta');
+      }
     } finally {
       setGuardando(false);
     }
@@ -156,11 +255,57 @@ export default function PaginaPrincipal() {
 
   return (
     <main className="app-mobile">
+      {/* Indicador de estado de conexión */}
+      {!online && (
+        <div className="offline-banner">
+          📡 Modo Offline - Las ventas se sincronizarán al volver la conexión
+        </div>
+      )}
+
+      {/* Indicador de ventas pendientes */}
+      {ventasPendientes > 0 && online && (
+        <div className="sync-banner" onClick={sincronizarPendientes}>
+          {sincronizando ? '⏳ Sincronizando...' : `🔄 ${ventasPendientes} venta(s) pendiente(s) - Toca para sincronizar`}
+        </div>
+      )}
+
+      {/* Confirmación de venta exitosa */}
+      {ventaExitosa && (
+        <div className="venta-exitosa-overlay">
+          <div className="venta-exitosa-modal">
+            <div className="exitosa-icon">{ventaExitosa.offline ? '📱' : '✅'}</div>
+            <h2>{ventaExitosa.offline ? '¡Guardado Offline!' : '¡Venta Exitosa!'}</h2>
+            {ventaExitosa.offline && (
+              <p className="offline-msg">Se sincronizará cuando haya conexión</p>
+            )}
+            <div className="exitosa-detalles">
+              <div className="exitosa-row">
+                <span>Total:</span>
+                <strong>${ventaExitosa.total.toFixed(2)}</strong>
+              </div>
+              {ventaExitosa.cambio > 0 && (
+                <div className="exitosa-row cambio">
+                  <span>Cambio:</span>
+                  <strong>${ventaExitosa.cambio.toFixed(2)}</strong>
+                </div>
+              )}
+            </div>
+            <div className="exitosa-check">
+              <svg viewBox="0 0 52 52" className="checkmark">
+                <circle className="checkmark-circle" cx="26" cy="26" r="25" fill="none"/>
+                <path className="checkmark-check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header móvil */}
       <header className="header-mobile">
         <div className="header-logo">
           <Image src="/logo_estefany.jpg" alt="Logo" width={45} height={45} className="logo-mini" />
           <span>Hamburguesas Estefany</span>
+          {!online && <span className="status-dot offline"></span>}
         </div>
         <nav className="nav-mobile">
           <a href="/productos" className="nav-btn">📦</a>
@@ -255,11 +400,7 @@ export default function PaginaPrincipal() {
                 <span>Pago:</span>
                 <div className="metodos-mobile">
                   {(['Efectivo', 'Tarjeta', 'Transferencia'] as const).map(m => (
-                    <button
-                      key={m}
-                      onClick={() => setMetodoPago(m)}
-                      className={`metodo-m ${metodoPago === m ? 'activo' : ''}`}
-                    >
+                    <button key={m} onClick={() => setMetodoPago(m)} className={`metodo-m ${metodoPago === m ? 'activo' : ''}`}>
                       {m === 'Efectivo' ? '💵' : m === 'Tarjeta' ? '💳' : '📱'}
                     </button>
                   ))}
@@ -269,12 +410,7 @@ export default function PaginaPrincipal() {
               {metodoPago === 'Efectivo' && (
                 <div className="efectivo-mobile">
                   <label>Paga con: $</label>
-                  <input
-                    type="number"
-                    value={efectivoRecibido}
-                    onChange={(e) => setEfectivoRecibido(e.target.value)}
-                    placeholder="0"
-                  />
+                  <input type="number" value={efectivoRecibido} onChange={(e) => setEfectivoRecibido(e.target.value)} placeholder="0" />
                   {efectivo >= totalVenta && efectivo > 0 && (
                     <span className="cambio-mobile">Cambio: ${cambio.toFixed(2)}</span>
                   )}
@@ -287,15 +423,9 @@ export default function PaginaPrincipal() {
               </div>
 
               <div className="btns-mobile">
-                <button onClick={() => { setCarrito([]); setMostrarCarrito(false); }} className="btn-cancel-m">
-                  🗑️ Cancelar
-                </button>
-                <button 
-                  onClick={procesarVenta} 
-                  className="btn-cobrar-m"
-                  disabled={guardando || (metodoPago === 'Efectivo' && efectivo < totalVenta)}
-                >
-                  {guardando ? '⏳' : '💰 Cobrar'}
+                <button onClick={() => { setCarrito([]); setMostrarCarrito(false); }} className="btn-cancel-m">🗑️</button>
+                <button onClick={procesarVenta} className="btn-cobrar-m" disabled={guardando || (metodoPago === 'Efectivo' && efectivo < totalVenta)}>
+                  {guardando ? '⏳' : online ? '💰 Cobrar' : '📱 Guardar Offline'}
                 </button>
               </div>
             </div>
@@ -303,7 +433,7 @@ export default function PaginaPrincipal() {
         </div>
       )}
 
-      {/* Sidebar para desktop */}
+      {/* Sidebar y carrito desktop */}
       <aside className="sidebar-desktop">
         <div className="sidebar-header">
           <Image src="/logo_estefany.jpg" alt="Logo" width={100} height={100} className="logo" />
@@ -316,11 +446,10 @@ export default function PaginaPrincipal() {
           <a href="/reportes" className="nav-item">📊 Reportes</a>
         </nav>
         <div className="sidebar-footer">
-          <p>Sistema POS v1.0</p>
+          <p>{online ? '🟢 Conectado' : '🔴 Offline'}</p>
         </div>
       </aside>
 
-      {/* Carrito para desktop */}
       <aside className="carrito-desktop">
         <div className="carrito-header">
           <h2>🛒 Orden</h2>
@@ -329,10 +458,7 @@ export default function PaginaPrincipal() {
 
         <div className="carrito-items">
           {carrito.length === 0 ? (
-            <div className="carrito-vacio">
-              <span>🛒</span>
-              <p>Carrito vacío</p>
-            </div>
+            <div className="carrito-vacio"><span>🛒</span><p>Carrito vacío</p></div>
           ) : (
             carrito.map(item => (
               <div key={item.producto.id} className="carrito-item">
@@ -387,7 +513,7 @@ export default function PaginaPrincipal() {
           <div className="botones-carrito">
             <button onClick={() => { setCarrito([]); setEfectivoRecibido(''); }} className="btn-cancelar" disabled={carrito.length === 0}>🗑️</button>
             <button onClick={procesarVenta} className="btn-cobrar" disabled={guardando || carrito.length === 0 || (metodoPago === 'Efectivo' && efectivo < totalVenta)}>
-              {guardando ? '⏳' : '💰 COBRAR'}
+              {guardando ? '⏳' : online ? '💰 COBRAR' : '📱 OFFLINE'}
             </button>
           </div>
         </div>

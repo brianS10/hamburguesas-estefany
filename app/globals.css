@@ -1268,3 +1268,193 @@ body {
     margin: 0 auto;
   }
 }
+
+/* ========== CONFIRMACIÓN DE VENTA EXITOSA ========== */
+.venta-exitosa-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.3s;
+}
+
+.venta-exitosa-modal {
+  background: var(--superficie);
+  border-radius: 20px;
+  padding: 40px 30px;
+  text-align: center;
+  max-width: 320px;
+  width: 90%;
+  animation: scaleIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes scaleIn {
+  from { transform: scale(0.5); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.exitosa-icon {
+  font-size: 4rem;
+  margin-bottom: 15px;
+  animation: bounce 0.6s;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-20px); }
+}
+
+.venta-exitosa-modal h2 {
+  color: var(--acento);
+  font-size: 1.5rem;
+  margin-bottom: 20px;
+}
+
+.exitosa-detalles {
+  background: var(--fondo);
+  border-radius: 12px;
+  padding: 15px;
+  margin-bottom: 25px;
+}
+
+.exitosa-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  font-size: 1.1rem;
+}
+
+.exitosa-row span {
+  color: var(--texto-2);
+}
+
+.exitosa-row strong {
+  color: var(--texto);
+}
+
+.exitosa-row.cambio strong {
+  color: var(--acento);
+  font-size: 1.3rem;
+}
+
+.exitosa-check {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto;
+}
+
+.checkmark {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  display: block;
+  stroke-width: 2;
+  stroke: var(--acento);
+  stroke-miterlimit: 10;
+  animation: fill 0.4s ease-in-out 0.4s forwards, scale 0.3s ease-in-out 0.9s both;
+}
+
+.checkmark-circle {
+  stroke-dasharray: 166;
+  stroke-dashoffset: 166;
+  stroke-width: 2;
+  stroke-miterlimit: 10;
+  stroke: var(--acento);
+  fill: none;
+  animation: stroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+}
+
+.checkmark-check {
+  transform-origin: 50% 50%;
+  stroke-dasharray: 48;
+  stroke-dashoffset: 48;
+  stroke-width: 3;
+  animation: stroke 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.8s forwards;
+}
+
+@keyframes stroke {
+  100% { stroke-dashoffset: 0; }
+}
+
+@keyframes scale {
+  0%, 100% { transform: none; }
+  50% { transform: scale3d(1.1, 1.1, 1); }
+}
+
+@keyframes fill {
+  100% { box-shadow: inset 0px 0px 0px 30px rgba(46, 196, 182, 0.1); }
+}
+
+/* ========== BANNERS OFFLINE/SYNC ========== */
+.offline-banner {
+  background: linear-gradient(135deg, #ff9800, #f57c00);
+  color: white;
+  text-align: center;
+  padding: 10px 15px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  z-index: 60;
+}
+
+.sync-banner {
+  background: linear-gradient(135deg, var(--acento), #1a9e93);
+  color: white;
+  text-align: center;
+  padding: 10px 15px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  position: sticky;
+  top: 0;
+  z-index: 60;
+}
+
+.sync-banner:active {
+  opacity: 0.8;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-left: 5px;
+}
+
+.status-dot.offline {
+  background: #ff9800;
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.offline-msg {
+  font-size: 0.85rem;
+  color: var(--texto-2);
+  margin-bottom: 15px;
+}
+
+/* Ajustar header cuando hay banner */
+.offline-banner + .header-mobile,
+.sync-banner + .header-mobile {
+  top: 38px;
+}
+
+@media (min-width: 900px) {
+  .offline-banner,
+  .sync-banner {
+    position: fixed;
+    top: 0;
+    left: 200px;
+    right: 340px;
+    z-index: 60;
+  }
+}
