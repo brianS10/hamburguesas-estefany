@@ -142,48 +142,57 @@ body {
 /* ========== PRODUCTOS MÓVIL ========== */
 .productos-mobile {
   padding: 10px 15px;
+  padding-bottom: 100px;
 }
 
 .grid-mobile {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
+  gap: 8px;
 }
 
 .producto-card {
   background: var(--superficie);
   border: none;
   border-radius: var(--radio);
-  padding: 12px 8px;
+  padding: 10px 6px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  justify-content: space-between;
+  gap: 4px;
   cursor: pointer;
   font-family: inherit;
   color: var(--texto);
   transition: transform 0.15s;
+  min-height: 95px;
 }
 .producto-card:active {
   transform: scale(0.95);
   background: var(--superficie-2);
 }
 
-.prod-emoji { font-size: 1.8rem; }
+.prod-emoji { 
+  font-size: 1.4rem; 
+  flex-shrink: 0;
+}
 .prod-nombre {
-  font-size: 0.7rem;
+  font-size: 0.6rem;
   font-weight: 600;
   text-align: center;
-  line-height: 1.2;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  line-height: 1.25;
+  word-break: break-word;
+  hyphens: auto;
+  max-width: 100%;
+  flex: 1;
+  display: flex;
+  align-items: center;
 }
 .prod-precio {
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   font-weight: 700;
   color: var(--acento);
+  flex-shrink: 0;
 }
 
 /* ========== FAB CARRITO ========== */
@@ -213,6 +222,7 @@ body {
 }
 
 .fab-emoji { font-size: 1.3rem; }
+.fab-total { font-size: 1rem; }
 .fab-badge {
   position: absolute;
   top: -5px;
@@ -225,6 +235,7 @@ body {
   align-items: center;
   justify-content: center;
   font-size: 0.75rem;
+  font-weight: 700;
 }
 
 /* ========== MODAL CARRITO ========== */
@@ -237,7 +248,6 @@ body {
   align-items: flex-end;
   animation: fadeIn 0.2s;
 }
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
 .carrito-modal {
   width: 100%;
@@ -248,16 +258,20 @@ body {
   flex-direction: column;
   animation: slideUp 0.3s;
 }
-@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
 
 .carrito-modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 18px 20px;
+  padding: 16px 20px;
   border-bottom: 1px solid var(--superficie-2);
+  flex-shrink: 0;
 }
-.carrito-modal-header h2 { font-size: 1.1rem; margin: 0; }
+.carrito-modal-header h2 { 
+  font-size: 1.1rem; 
+  margin: 0; 
+  color: var(--texto);
+}
 .btn-cerrar {
   width: 36px;
   height: 36px;
@@ -267,38 +281,52 @@ body {
   color: var(--texto);
   font-size: 1.2rem;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .carrito-modal-items {
   flex: 1;
   overflow-y: auto;
-  padding: 15px 20px;
-  max-height: 40vh;
+  padding: 12px 16px;
+  max-height: 35vh;
 }
 
 .item-mobile {
-  display: grid;
-  grid-template-columns: 1fr auto auto;
-  gap: 10px;
-  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   padding: 12px;
   background: var(--fondo);
   border-radius: 10px;
   margin-bottom: 10px;
 }
 
-.item-mobile-info { min-width: 0; }
+.item-mobile-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.item-mobile-info { 
+  flex: 1;
+  min-width: 0; 
+}
 .item-mobile-nombre {
   font-weight: 600;
   font-size: 0.9rem;
   display: block;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.3;
+  word-break: break-word;
+  color: var(--texto);
 }
 .item-mobile-precio {
   font-size: 0.75rem;
   color: var(--texto-2);
+  display: block;
+  margin-top: 2px;
 }
 
 .item-mobile-controles {
@@ -315,20 +343,27 @@ body {
   color: var(--texto);
   font-size: 1.2rem;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .item-mobile-cant {
   font-weight: 700;
   min-width: 20px;
   text-align: center;
+  font-size: 1rem;
+  color: var(--texto);
 }
 
 .item-mobile-subtotal {
-  text-align: right;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
-.item-mobile-subtotal span {
-  display: block;
+.item-mobile-subtotal > span {
   font-weight: 700;
   color: var(--acento);
+  font-size: 1rem;
 }
 .btn-borrar {
   background: none;
@@ -336,27 +371,30 @@ body {
   font-size: 1rem;
   cursor: pointer;
   opacity: 0.6;
+  padding: 4px;
 }
 
 .carrito-modal-footer {
-  padding: 15px 20px;
+  padding: 14px 16px;
   border-top: 1px solid var(--superficie-2);
   background: var(--fondo);
+  flex-shrink: 0;
 }
 
 .metodo-pago-mobile {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: 10px;
+  margin-bottom: 10px;
 }
-.metodo-pago-mobile span {
-  font-size: 0.85rem;
+.metodo-pago-mobile > span {
+  font-size: 0.8rem;
   color: var(--texto-2);
+  flex-shrink: 0;
 }
 .metodos-mobile {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   flex: 1;
 }
 .metodo-m {
@@ -364,9 +402,12 @@ body {
   padding: 10px;
   background: var(--superficie);
   border: 2px solid var(--superficie-2);
-  border-radius: 10px;
-  font-size: 1.3rem;
+  border-radius: 8px;
+  font-size: 1.2rem;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .metodo-m.activo {
   background: var(--primario);
@@ -376,24 +417,25 @@ body {
 .efectivo-mobile {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 12px;
+  gap: 8px;
+  margin-bottom: 10px;
   flex-wrap: wrap;
 }
 .efectivo-mobile label {
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   color: var(--texto-2);
+  flex-shrink: 0;
 }
 .efectivo-mobile input {
   flex: 1;
-  min-width: 100px;
-  padding: 12px;
+  min-width: 80px;
+  padding: 10px 12px;
   background: var(--superficie);
   border: 2px solid var(--superficie-2);
-  border-radius: 10px;
+  border-radius: 8px;
   color: var(--texto);
   font-family: inherit;
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: 600;
 }
 .efectivo-mobile input:focus {
@@ -402,63 +444,81 @@ body {
 }
 .cambio-mobile {
   width: 100%;
-  padding: 8px 12px;
+  padding: 8px 10px;
   background: rgba(46, 196, 182, 0.15);
-  border-radius: 8px;
+  border-radius: 6px;
   color: var(--acento);
   font-weight: 600;
   text-align: center;
+  font-size: 0.9rem;
 }
 
 .total-mobile {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 0;
-  margin-bottom: 12px;
+  padding: 10px 0;
+  margin-bottom: 10px;
   border-top: 2px dashed var(--superficie-2);
 }
-.total-mobile span { color: var(--texto-2); }
+.total-mobile span { 
+  color: var(--texto-2); 
+  font-size: 0.9rem;
+}
 .total-mobile strong {
-  font-size: 1.8rem;
+  font-size: 1.6rem;
   color: var(--primario);
 }
 
 .btns-mobile {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 10px;
+  gap: 8px;
 }
-.btn-cancel-m, .btn-cobrar-m {
-  padding: 16px;
+.btn-cancel-m {
+  padding: 14px 18px;
   border: none;
-  border-radius: 12px;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 1.1rem;
+  cursor: pointer;
+  background: var(--superficie-2);
+  color: var(--texto);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-cobrar-m {
+  padding: 14px;
+  border: none;
+  border-radius: 10px;
   font-family: inherit;
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-}
-.btn-cancel-m {
-  background: var(--superficie-2);
-  color: var(--texto);
-}
-.btn-cobrar-m {
   background: var(--primario);
   color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 .btn-cobrar-m:disabled {
   opacity: 0.5;
-}
-
-/* ========== OCULTAR EN MÓVIL ========== */
-.sidebar-desktop, .carrito-desktop {
-  display: none;
+  cursor: not-allowed;
 }
 
 /* ========== DESKTOP ========== */
 @media (min-width: 900px) {
-  .header-mobile, .fab-carrito, .carrito-overlay {
+  .header-mobile, 
+  .fab-carrito, 
+  .carrito-overlay {
     display: none !important;
+  }
+
+  .sidebar-desktop, 
+  .carrito-desktop {
+    display: flex !important;
   }
 
   .app-mobile {
@@ -485,13 +545,13 @@ body {
   .producto-card {
     padding: 18px 12px;
     gap: 8px;
+    min-height: 120px;
   }
   .prod-emoji { font-size: 2.2rem; }
   .prod-nombre { font-size: 0.8rem; }
   .prod-precio { font-size: 1rem; }
 
   .sidebar-desktop {
-    display: flex;
     flex-direction: column;
     grid-column: 1;
     grid-row: 1 / 10;
@@ -715,6 +775,12 @@ body {
   .btn-cancelar:disabled { opacity: 0.4; }
   .btn-cobrar { flex: 1; background: var(--primario); color: white; }
   .btn-cobrar:disabled { opacity: 0.4; cursor: not-allowed; }
+}
+
+/* ========== OCULTAR EN MÓVIL ========== */
+.sidebar-desktop, 
+.carrito-desktop {
+  display: none !important;
 }
 
 /* ========== PÁGINAS SECUNDARIAS ========== */

@@ -236,11 +236,46 @@ export default function PaginaPrincipal() {
     }
   };
 
-  const obtenerEmoji = (nombre: string) => {
-    const emojis: Record<string, string> = {
-      'Hamburguesas': '🍔', 'Alitas': '🍗', 'Tacos': '🌮', 'Bebidas': '🥤', 'Extras': '🍟'
+  const EMOJIS_CONOCIDOS = ['🍔', '🍗', '🌮', '🌯', '🥤', '🍟', '🍕', '🌭', '🥗', '🍰', '🍦', '☕', '🧃', '🥪', '🍱', '🍳', '🥓', '🧀', '🍽️'];
+
+  const obtenerEmoji = (nombreCat: string): string => {
+    if (!nombreCat) return '🍽️';
+    
+    // Obtener el primer caracter/emoji del nombre
+    const primerCaracter = [...nombreCat][0];
+    
+    // Lista de emojis válidos
+    const emojisValidos = '🍔🍗🌮🌯🥤🍟🍕🌭🥗🍰🍦☕🧃🥪🍱🍳🥓🧀🍽️';
+    
+    if (emojisValidos.includes(primerCaracter)) {
+      return primerCaracter;
+    }
+    
+    // Fallback para categorías sin emoji
+    const fallbacks: Record<string, string> = {
+      'Hamburguesas': '🍔',
+      'Alitas': '🍗',
+      'Tacos': '🌮',
+      'Bebidas': '🥤',
+      'Extras': '🍟',
+      'Postres': '🍰',
+      'Combos': '🍱'
     };
-    return emojis[nombre] || '🍽️';
+    
+    return fallbacks[nombreCat] || '🍽️';
+  };
+
+  const obtenerNombreSinEmoji = (nombreCat: string): string => {
+    if (!nombreCat) return '';
+    
+    const emojisValidos = '🍔🍗🌮🌯🥤🍟🍕🌭🥗🍰🍦☕🧃🥪🍱🍳🥓🧀🍽️';
+    const primerCaracter = [...nombreCat][0];
+    
+    if (emojisValidos.includes(primerCaracter)) {
+      return nombreCat.slice(primerCaracter.length).trim();
+    }
+    
+    return nombreCat;
   };
 
   if (cargando) {
@@ -328,7 +363,7 @@ export default function PaginaPrincipal() {
             onClick={() => setCategoriaSeleccionada(cat.id)}
             className={`chip-cat ${categoriaSeleccionada === cat.id ? 'activo' : ''}`}
           >
-            {obtenerEmoji(cat.nombre)} {cat.nombre}
+            {obtenerEmoji(cat.nombre)} {obtenerNombreSinEmoji(cat.nombre)}
           </button>
         ))}
       </div>
@@ -383,14 +418,16 @@ export default function PaginaPrincipal() {
                     <span className="item-mobile-nombre">{item.producto.nombre}</span>
                     <span className="item-mobile-precio">${item.producto.precio} c/u</span>
                   </div>
-                  <div className="item-mobile-controles">
-                    <button onClick={() => quitarDelCarrito(item.producto.id)} className="btn-ctrl">−</button>
-                    <span className="item-mobile-cant">{item.cantidad}</span>
-                    <button onClick={() => agregarAlCarrito(item.producto)} className="btn-ctrl">+</button>
-                  </div>
-                  <div className="item-mobile-subtotal">
-                    <span>${item.subtotal}</span>
-                    <button onClick={() => eliminarDelCarrito(item.producto.id)} className="btn-borrar">🗑️</button>
+                  <div className="item-mobile-row">
+                    <div className="item-mobile-controles">
+                      <button onClick={() => quitarDelCarrito(item.producto.id)} className="btn-ctrl">−</button>
+                      <span className="item-mobile-cant">{item.cantidad}</span>
+                      <button onClick={() => agregarAlCarrito(item.producto)} className="btn-ctrl">+</button>
+                    </div>
+                    <div className="item-mobile-subtotal">
+                      <span>${item.subtotal}</span>
+                      <button onClick={() => eliminarDelCarrito(item.producto.id)} className="btn-borrar">🗑️</button>
+                    </div>
                   </div>
                 </div>
               ))}
