@@ -338,8 +338,8 @@ export default function PaginaPrincipal() {
       {/* Header móvil */}
       <header className="header-mobile">
         <div className="header-logo">
-          <Image src="/logo_estefany.jpg" alt="Logo" width={45} height={45} className="logo-mini" />
-          <span>Hamburguesas Estefany</span>
+          <Image src="/logo_estefany.jpg" alt="Logo" width={50} height={50} className="logo-mini" />
+          <span>Hamburguesas<br/>Estefany</span>
           {!online && <span className="status-dot offline"></span>}
         </div>
         <nav className="nav-mobile">
@@ -556,6 +556,11 @@ export default function PaginaPrincipal() {
           </div>
         </div>
       </aside>
+
+      {/* Footer amor móvil */}
+      <footer className="footer-amor-mobile">
+        <p>hecho con <span>♥</span> por el novio de Estefany</p>
+      </footer>
     </main>
   );
 }

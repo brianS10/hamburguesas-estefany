@@ -50,7 +50,7 @@ body {
 /* ========== LAYOUT MÓVIL ========== */
 .app-mobile {
   min-height: 100vh;
-  padding-bottom: 100px;
+  padding-bottom: 140px;
 }
 
 .header-mobile {
@@ -60,15 +60,16 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 12px;
+  padding: 8px 10px;
   background: var(--superficie);
   border-bottom: 1px solid var(--superficie-2);
+  gap: 8px;
 }
 
 .header-logo {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   flex: 1;
   min-width: 0;
 }
@@ -77,33 +78,33 @@ body {
   border-radius: 50%;
   border: 2px solid var(--primario);
   flex-shrink: 0;
+  width: 50px !important;
+  height: 50px !important;
 }
 
 .header-logo span {
   font-weight: 700;
   font-size: 0.85rem;
   color: var(--primario);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.2;
 }
 
 .nav-mobile {
   display: flex;
-  gap: 6px;
+  gap: 4px;
   flex-shrink: 0;
 }
 
 .nav-btn {
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: var(--superficie-2);
-  border-radius: 10px;
+  border-radius: 8px;
   text-decoration: none;
-  font-size: 1.3rem;
+  font-size: 1.1rem;
 }
 
 .nav-btn:active {
@@ -926,6 +927,28 @@ body {
   font-weight: 600;
 }
 
+/* FOOTER AMOR */
+.footer-amor-mobile {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  text-align: center;
+  padding: 6px;
+  background: transparent;
+  z-index: 5;
+  pointer-events: none;
+}
+.footer-amor-mobile p {
+  margin: 0;
+  font-size: 0.55rem;
+  color: var(--texto-2);
+  opacity: 0.5;
+}
+.footer-amor-mobile span {
+  color: var(--primario);
+}
+
 /* Footer amor */
 .footer-amor {
   position: fixed;
@@ -942,6 +965,9 @@ body {
   margin: 0;
   font-size: 0.7rem;
   color: var(--texto-2);
+}
+.footer-amor span {
+  color: var(--primario);
 }
 @media (max-width: 899px) {
   .footer-amor { display: none; }
