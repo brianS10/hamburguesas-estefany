@@ -36,23 +36,14 @@ export default function PaginaReportes() {
   const [filtroFecha, setFiltroFecha] = useState<'hoy' | 'semana' | 'mes' | 'todo'>('hoy');
   const [ventaSeleccionada, setVentaSeleccionada] = useState<number | null>(null);
   const [detallesVenta, setDetallesVenta] = useState<DetalleVenta[]>([]);
+  const [vistaActiva, setVistaActiva] = useState<'resumen' | 'historial' | 'productos'>('resumen');
 
-  useEffect(() => { 
-    cargarDatos(); 
-  }, []);
+  useEffect(() => { cargarDatos(); }, []);
 
   const cargarDatos = async () => {
     setCargando(true);
-    
-    const { data: ventasData } = await supabase
-      .from('ventas')
-      .select('*')
-      .order('fecha', { ascending: false });
-    
-    const { data: detallesData } = await supabase
-      .from('detalle_ventas')
-      .select('*, productos(nombre)');
-    
+    const { data: ventasData } = await supabase.from('ventas').select('*').order('fecha', { ascending: false });
+    const { data: detallesData } = await supabase.from('detalle_ventas').select('*, productos(nombre)');
     setVentas(ventasData || []);
     setDetalles(detallesData || []);
     setCargando(false);
@@ -64,25 +55,17 @@ export default function PaginaReportes() {
       setDetallesVenta([]);
       return;
     }
-    
-    const { data } = await supabase
-      .from('detalle_ventas')
-      .select('*, productos(nombre)')
-      .eq('venta_id', ventaId);
-    
+    const { data } = await supabase.from('detalle_ventas').select('*, productos(nombre)').eq('venta_id', ventaId);
     setVentaSeleccionada(ventaId);
     setDetallesVenta(data || []);
   };
 
   const eliminarVenta = async (id: number) => {
-    if (!confirm(`¿Eliminar venta #${id}?\n\nEsta acción no se puede deshacer.`)) return;
-    
+    if (!confirm(`¿Eliminar venta #${id}?`)) return;
     setEliminando(id);
     try {
       await supabase.from('detalle_ventas').delete().eq('venta_id', id);
-      const { error } = await supabase.from('ventas').delete().eq('id', id);
-      if (error) throw error;
-      
+      await supabase.from('ventas').delete().eq('id', id);
       setVentas(ventas.filter(v => v.id !== id));
       if (ventaSeleccionada === id) {
         setVentaSeleccionada(null);
@@ -90,23 +73,19 @@ export default function PaginaReportes() {
       }
       cargarDatos();
     } catch (error) {
-      console.error('Error:', error);
       alert('❌ Error al eliminar');
     } finally {
       setEliminando(null);
     }
   };
 
-  // Filtrar ventas por fecha
   const filtrarVentas = () => {
     const ahora = new Date();
     const hoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
-    
     return ventas.filter(v => {
       const fechaVenta = new Date(v.fecha);
       switch (filtroFecha) {
-        case 'hoy':
-          return fechaVenta >= hoy;
+        case 'hoy': return fechaVenta >= hoy;
         case 'semana':
           const inicioSemana = new Date(hoy);
           inicioSemana.setDate(hoy.getDate() - 7);
@@ -114,201 +93,194 @@ export default function PaginaReportes() {
         case 'mes':
           const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
           return fechaVenta >= inicioMes;
-        default:
-          return true;
+        default: return true;
       }
     });
   };
 
   const ventasFiltradas = filtrarVentas();
-
-  // Estadísticas
   const totalVentas = ventasFiltradas.reduce((t, v) => t + v.total_venta, 0);
   const cantidadVentas = ventasFiltradas.length;
   const promedioVenta = cantidadVentas > 0 ? totalVentas / cantidadVentas : 0;
-  
   const ventasEfectivo = ventasFiltradas.filter(v => v.metodo_pago === 'Efectivo').reduce((t, v) => t + v.total_venta, 0);
   const ventasTarjeta = ventasFiltradas.filter(v => v.metodo_pago === 'Tarjeta').reduce((t, v) => t + v.total_venta, 0);
   const ventasTransferencia = ventasFiltradas.filter(v => v.metodo_pago === 'Transferencia').reduce((t, v) => t + v.total_venta, 0);
 
-  // Productos más vendidos
   const productosVendidos: ProductoVendido[] = [];
   const ventaIds = ventasFiltradas.map(v => v.id);
-  
-  detalles
-    .filter(d => ventaIds.includes(d.venta_id))
-    .forEach(d => {
-      const nombre = d.productos?.nombre || 'Producto';
-      const existente = productosVendidos.find(p => p.nombre === nombre);
-      if (existente) {
-        existente.cantidad += d.cantidad;
-        existente.total += d.cantidad * d.precio_unitario;
-      } else {
-        productosVendidos.push({
-          nombre,
-          cantidad: d.cantidad,
-          total: d.cantidad * d.precio_unitario
-        });
-      }
-    });
-  
+  detalles.filter(d => ventaIds.includes(d.venta_id)).forEach(d => {
+    const nombre = d.productos?.nombre || 'Producto';
+    const existente = productosVendidos.find(p => p.nombre === nombre);
+    if (existente) {
+      existente.cantidad += d.cantidad;
+      existente.total += d.cantidad * d.precio_unitario;
+    } else {
+      productosVendidos.push({ nombre, cantidad: d.cantidad, total: d.cantidad * d.precio_unitario });
+    }
+  });
   productosVendidos.sort((a, b) => b.cantidad - a.cantidad);
 
   if (cargando) return (
-    <main className="pagina">
-      <div className="pantalla-carga"><div className="spinner"></div><p>Cargando reportes...</p></div>
-    </main>
+    <main className="pagina"><div className="pantalla-carga"><div className="spinner"></div><p>Cargando...</p></div></main>
   );
 
   return (
-    <main className="pagina">
-      <header className="pagina-header">
-        <Image src="/logo_estefany.jpg" alt="Logo" width={70} height={70} className="logo" />
-        <h1>📊 Reportes de Ventas</h1>
-        <a href="/" className="btn-volver">← Volver</a>
+    <main className="reporte-page">
+      {/* Header */}
+      <header className="reporte-header">
+        <a href="/" className="reporte-back">←</a>
+        <div className="reporte-title">
+          <Image src="/logo_estefany.jpg" alt="Logo" width={40} height={40} className="reporte-logo" />
+          <h1>Reportes</h1>
+        </div>
+        <button onClick={cargarDatos} className="reporte-refresh">🔄</button>
       </header>
 
       {/* Filtros de fecha */}
-      <div className="filtros-reporte">
-        <button 
-          onClick={() => setFiltroFecha('hoy')} 
-          className={`filtro-btn ${filtroFecha === 'hoy' ? 'activo' : ''}`}
-        >
-          📅 Hoy
-        </button>
-        <button 
-          onClick={() => setFiltroFecha('semana')} 
-          className={`filtro-btn ${filtroFecha === 'semana' ? 'activo' : ''}`}
-        >
-          📆 Última Semana
-        </button>
-        <button 
-          onClick={() => setFiltroFecha('mes')} 
-          className={`filtro-btn ${filtroFecha === 'mes' ? 'activo' : ''}`}
-        >
-          🗓️ Este Mes
-        </button>
-        <button 
-          onClick={() => setFiltroFecha('todo')} 
-          className={`filtro-btn ${filtroFecha === 'todo' ? 'activo' : ''}`}
-        >
-          📋 Todo
-        </button>
-        <button onClick={cargarDatos} className="btn-refrescar">🔄 Actualizar</button>
+      <div className="filtros-fecha">
+        {(['hoy', 'semana', 'mes', 'todo'] as const).map(f => (
+          <button key={f} onClick={() => setFiltroFecha(f)} className={`filtro-f ${filtroFecha === f ? 'activo' : ''}`}>
+            {f === 'hoy' ? '📅 Hoy' : f === 'semana' ? '📆 7 días' : f === 'mes' ? '🗓️ Mes' : '📋 Todo'}
+          </button>
+        ))}
       </div>
 
-      {/* Resumen principal */}
-      <div className="resumen-cards">
-        <div className="resumen-card principal">
-          <h3>💰 Total Ventas</h3>
-          <p className="valor">${totalVentas.toFixed(2)}</p>
-          <p className="subtexto">{cantidadVentas} ventas</p>
-        </div>
-        <div className="resumen-card">
-          <h3>🧾 Promedio</h3>
-          <p className="valor">${promedioVenta.toFixed(2)}</p>
-          <p className="subtexto">por venta</p>
-        </div>
-        <div className="resumen-card">
-          <h3>💵 Efectivo</h3>
-          <p className="valor">${ventasEfectivo.toFixed(2)}</p>
-          <p className="subtexto">{ventasFiltradas.filter(v => v.metodo_pago === 'Efectivo').length} ventas</p>
-        </div>
-        <div className="resumen-card">
-          <h3>💳 Tarjeta</h3>
-          <p className="valor">${ventasTarjeta.toFixed(2)}</p>
-          <p className="subtexto">{ventasFiltradas.filter(v => v.metodo_pago === 'Tarjeta').length} ventas</p>
-        </div>
-        <div className="resumen-card">
-          <h3>📱 Transferencia</h3>
-          <p className="valor">${ventasTransferencia.toFixed(2)}</p>
-          <p className="subtexto">{ventasFiltradas.filter(v => v.metodo_pago === 'Transferencia').length} ventas</p>
-        </div>
+      {/* Tabs de vista */}
+      <div className="vista-tabs">
+        <button onClick={() => setVistaActiva('resumen')} className={`vista-tab ${vistaActiva === 'resumen' ? 'activo' : ''}`}>
+          💰 Resumen
+        </button>
+        <button onClick={() => setVistaActiva('historial')} className={`vista-tab ${vistaActiva === 'historial' ? 'activo' : ''}`}>
+          🧾 Historial
+        </button>
+        <button onClick={() => setVistaActiva('productos')} className={`vista-tab ${vistaActiva === 'productos' ? 'activo' : ''}`}>
+          🏆 Top
+        </button>
       </div>
 
-      {/* Productos más vendidos */}
-      <section className="tabla-card">
-        <div className="tabla-header">
-          <h2>🏆 Productos Más Vendidos</h2>
-        </div>
-        {productosVendidos.length === 0 ? (
-          <p className="sin-datos">No hay datos en este período</p>
-        ) : (
-          <div className="productos-ranking">
-            {productosVendidos.slice(0, 10).map((prod, index) => (
-              <div key={prod.nombre} className="ranking-item">
-                <span className="ranking-pos">#{index + 1}</span>
-                <span className="ranking-nombre">{prod.nombre}</span>
-                <span className="ranking-cantidad">{prod.cantidad} vendidos</span>
-                <span className="ranking-total">${prod.total.toFixed(2)}</span>
+      {/* Vista Resumen */}
+      {vistaActiva === 'resumen' && (
+        <div className="resumen-mobile">
+          <div className="stat-card principal">
+            <span className="stat-icon">💰</span>
+            <div className="stat-info">
+              <span className="stat-label">Total Ventas</span>
+              <span className="stat-valor">${totalVentas.toFixed(2)}</span>
+              <span className="stat-sub">{cantidadVentas} ventas</span>
+            </div>
+          </div>
+
+          <div className="stats-grid">
+            <div className="stat-card">
+              <span className="stat-icon">🧾</span>
+              <div className="stat-info">
+                <span className="stat-label">Promedio</span>
+                <span className="stat-valor">${promedioVenta.toFixed(0)}</span>
               </div>
-            ))}
+            </div>
+            <div className="stat-card">
+              <span className="stat-icon">💵</span>
+              <div className="stat-info">
+                <span className="stat-label">Efectivo</span>
+                <span className="stat-valor">${ventasEfectivo.toFixed(0)}</span>
+              </div>
+            </div>
+            <div className="stat-card">
+              <span className="stat-icon">💳</span>
+              <div className="stat-info">
+                <span className="stat-label">Tarjeta</span>
+                <span className="stat-valor">${ventasTarjeta.toFixed(0)}</span>
+              </div>
+            </div>
+            <div className="stat-card">
+              <span className="stat-icon">📱</span>
+              <div className="stat-info">
+                <span className="stat-label">Transfer</span>
+                <span className="stat-valor">${ventasTransferencia.toFixed(0)}</span>
+              </div>
+            </div>
           </div>
-        )}
-      </section>
-
-      {/* Historial de ventas */}
-      <section className="tabla-card">
-        <div className="tabla-header">
-          <h2>📋 Historial de Ventas ({ventasFiltradas.length})</h2>
         </div>
-        
-        {ventasFiltradas.length === 0 ? (
-          <div className="estado-vacio">
-            <span className="emoji-grande">📊</span>
-            <h3>No hay ventas en este período</h3>
-          </div>
-        ) : (
-          <div className="lista-ventas">
-            {ventasFiltradas.map(venta => (
-              <div key={venta.id} className={`venta-item ${ventaSeleccionada === venta.id ? 'expandida' : ''}`}>
-                <div className="venta-resumen" onClick={() => verDetallesVenta(venta.id)}>
-                  <div className="venta-info">
-                    <span className="venta-id">#{venta.id}</span>
-                    <span className="venta-fecha">
-                      {new Date(venta.fecha).toLocaleDateString('es-MX', { 
-                        weekday: 'short', 
-                        day: 'numeric', 
-                        month: 'short',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
+      )}
+
+      {/* Vista Historial */}
+      {vistaActiva === 'historial' && (
+        <div className="historial-mobile">
+          {ventasFiltradas.length === 0 ? (
+            <div className="estado-vacio">
+              <span className="emoji-grande">📊</span>
+              <h3>No hay ventas</h3>
+            </div>
+          ) : (
+            ventasFiltradas.map(venta => (
+              <div key={venta.id} className={`venta-card ${ventaSeleccionada === venta.id ? 'expandida' : ''}`}>
+                <div className="venta-main" onClick={() => verDetallesVenta(venta.id)}>
+                  <div className="venta-left">
+                    <span className="venta-metodo">
+                      {venta.metodo_pago === 'Efectivo' ? '💵' : venta.metodo_pago === 'Tarjeta' ? '💳' : '📱'}
                     </span>
+                    <div className="venta-data">
+                      <span className="venta-id">Venta #{venta.id}</span>
+                      <span className="venta-fecha">
+                        {new Date(venta.fecha).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })} 
+                        {' '}
+                        {new Date(venta.fecha).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
                   </div>
-                  <div className="venta-metodo">
-                    {venta.metodo_pago === 'Efectivo' ? '💵' : venta.metodo_pago === 'Tarjeta' ? '💳' : '📱'}
-                  </div>
-                  <div className="venta-montos">
+                  <div className="venta-right">
                     <span className="venta-total">${venta.total_venta}</span>
-                    {venta.metodo_pago === 'Efectivo' && venta.cambio > 0 && (
-                      <span className="venta-cambio">Cambio: ${venta.cambio}</span>
-                    )}
+                    <span className="venta-arrow">{ventaSeleccionada === venta.id ? '▲' : '▼'}</span>
                   </div>
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); eliminarVenta(venta.id); }} 
-                    className="btn-eliminar-venta"
-                    disabled={eliminando === venta.id}
-                  >
-                    {eliminando === venta.id ? '⏳' : '🗑️'}
-                  </button>
                 </div>
-                
+
                 {ventaSeleccionada === venta.id && (
                   <div className="venta-detalles">
-                    <h4>Productos vendidos:</h4>
                     {detallesVenta.map(d => (
-                      <div key={d.id} className="detalle-item">
+                      <div key={d.id} className="detalle-row">
                         <span>{d.cantidad}x {d.productos?.nombre}</span>
                         <span>${(d.cantidad * d.precio_unitario).toFixed(2)}</span>
                       </div>
                     ))}
+                    {venta.metodo_pago === 'Efectivo' && venta.cambio > 0 && (
+                      <div className="detalle-row cambio-row">
+                        <span>Cambio</span>
+                        <span>${venta.cambio}</span>
+                      </div>
+                    )}
+                    <button onClick={() => eliminarVenta(venta.id)} className="btn-eliminar-venta" disabled={eliminando === venta.id}>
+                      {eliminando === venta.id ? '⏳ Eliminando...' : '🗑️ Eliminar venta'}
+                    </button>
                   </div>
                 )}
               </div>
-            ))}
-          </div>
-        )}
-      </section>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* Vista Productos */}
+      {vistaActiva === 'productos' && (
+        <div className="productos-top">
+          {productosVendidos.length === 0 ? (
+            <div className="estado-vacio">
+              <span className="emoji-grande">🏆</span>
+              <h3>Sin datos</h3>
+            </div>
+          ) : (
+            productosVendidos.slice(0, 10).map((prod, i) => (
+              <div key={prod.nombre} className="top-item">
+                <span className={`top-pos ${i < 3 ? 'top3' : ''}`}>#{i + 1}</span>
+                <div className="top-info">
+                  <span className="top-nombre">{prod.nombre}</span>
+                  <span className="top-cantidad">{prod.cantidad} vendidos</span>
+                </div>
+                <span className="top-total">${prod.total.toFixed(0)}</span>
+              </div>
+            ))
+          )}
+        </div>
+      )}
     </main>
   );
 }
