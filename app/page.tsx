@@ -14,6 +14,7 @@ export default function PaginaPrincipal() {
   const [guardando, setGuardando] = useState(false);
   const [cargando, setCargando] = useState(true);
   const [metodoPago, setMetodoPago] = useState<'Efectivo' | 'Tarjeta' | 'Transferencia'>('Efectivo');
+  const [mostrarCarrito, setMostrarCarrito] = useState(false);
 
   // Cargar productos y categorías al iniciar
   useEffect(() => {
@@ -80,6 +81,7 @@ export default function PaginaPrincipal() {
   };
 
   const totalVenta = carrito.reduce((total, item) => total + item.subtotal, 0);
+  const totalItems = carrito.reduce((t, i) => t + i.cantidad, 0);
   const efectivo = parseFloat(efectivoRecibido) || 0;
   const cambio = efectivo - totalVenta;
 
@@ -126,6 +128,7 @@ export default function PaginaPrincipal() {
       
       setCarrito([]);
       setEfectivoRecibido('');
+      setMostrarCarrito(false);
     } catch (error) {
       console.error('Error:', error);
       alert('❌ Error al guardar');
@@ -144,7 +147,7 @@ export default function PaginaPrincipal() {
   if (cargando) {
     return (
       <main className="pantalla-carga">
-        <Image src="/logo_estefany.jpg" alt="Logo" width={200} height={200} className="logo-carga" />
+        <Image src="/logo_estefany.jpg" alt="Logo" width={150} height={150} className="logo-carga" />
         <div className="spinner"></div>
         <p>Cargando...</p>
       </main>
@@ -152,90 +155,183 @@ export default function PaginaPrincipal() {
   }
 
   return (
-    <main className="app">
-      {/* Sidebar / Navegación */}
-      <aside className="sidebar">
+    <main className="app-mobile">
+      {/* Header móvil */}
+      <header className="header-mobile">
+        <div className="header-logo">
+          <Image src="/logo_estefany.jpg" alt="Logo" width={45} height={45} className="logo-mini" />
+          <span>Hamburguesas Estefany</span>
+        </div>
+        <nav className="nav-mobile">
+          <a href="/productos" className="nav-btn">📦</a>
+          <a href="/reportes" className="nav-btn">📊</a>
+        </nav>
+      </header>
+
+      {/* Categorías */}
+      <div className="categorias-scroll">
+        <button
+          onClick={() => setCategoriaSeleccionada(null)}
+          className={`chip-cat ${categoriaSeleccionada === null ? 'activo' : ''}`}
+        >
+          🍽️ Todo
+        </button>
+        {categorias.map(cat => (
+          <button
+            key={cat.id}
+            onClick={() => setCategoriaSeleccionada(cat.id)}
+            className={`chip-cat ${categoriaSeleccionada === cat.id ? 'activo' : ''}`}
+          >
+            {obtenerEmoji(cat.nombre)} {cat.nombre}
+          </button>
+        ))}
+      </div>
+
+      {/* Productos */}
+      <section className="productos-mobile">
+        {productos.length === 0 ? (
+          <div className="estado-vacio">
+            <span className="emoji-grande">📦</span>
+            <h3>No hay productos</h3>
+            <a href="/productos" className="boton-primario">➕ Agregar</a>
+          </div>
+        ) : (
+          <div className="grid-mobile">
+            {productosFiltrados.map(producto => (
+              <button 
+                key={producto.id} 
+                className="producto-card"
+                onClick={() => agregarAlCarrito(producto)}
+              >
+                <span className="prod-emoji">{obtenerEmoji(producto.categorias?.nombre || '')}</span>
+                <span className="prod-nombre">{producto.nombre}</span>
+                <span className="prod-precio">${producto.precio}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Botón flotante del carrito */}
+      {totalItems > 0 && !mostrarCarrito && (
+        <button className="fab-carrito" onClick={() => setMostrarCarrito(true)}>
+          <span className="fab-emoji">🛒</span>
+          <span className="fab-total">${totalVenta}</span>
+          <span className="fab-badge">{totalItems}</span>
+        </button>
+      )}
+
+      {/* Panel del carrito (modal en móvil) */}
+      {mostrarCarrito && (
+        <div className="carrito-overlay" onClick={() => setMostrarCarrito(false)}>
+          <div className="carrito-modal" onClick={e => e.stopPropagation()}>
+            <div className="carrito-modal-header">
+              <h2>🛒 Tu Orden</h2>
+              <button onClick={() => setMostrarCarrito(false)} className="btn-cerrar">✕</button>
+            </div>
+
+            <div className="carrito-modal-items">
+              {carrito.map(item => (
+                <div key={item.producto.id} className="item-mobile">
+                  <div className="item-mobile-info">
+                    <span className="item-mobile-nombre">{item.producto.nombre}</span>
+                    <span className="item-mobile-precio">${item.producto.precio} c/u</span>
+                  </div>
+                  <div className="item-mobile-controles">
+                    <button onClick={() => quitarDelCarrito(item.producto.id)} className="btn-ctrl">−</button>
+                    <span className="item-mobile-cant">{item.cantidad}</span>
+                    <button onClick={() => agregarAlCarrito(item.producto)} className="btn-ctrl">+</button>
+                  </div>
+                  <div className="item-mobile-subtotal">
+                    <span>${item.subtotal}</span>
+                    <button onClick={() => eliminarDelCarrito(item.producto.id)} className="btn-borrar">🗑️</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="carrito-modal-footer">
+              <div className="metodo-pago-mobile">
+                <span>Pago:</span>
+                <div className="metodos-mobile">
+                  {(['Efectivo', 'Tarjeta', 'Transferencia'] as const).map(m => (
+                    <button
+                      key={m}
+                      onClick={() => setMetodoPago(m)}
+                      className={`metodo-m ${metodoPago === m ? 'activo' : ''}`}
+                    >
+                      {m === 'Efectivo' ? '💵' : m === 'Tarjeta' ? '💳' : '📱'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {metodoPago === 'Efectivo' && (
+                <div className="efectivo-mobile">
+                  <label>Paga con: $</label>
+                  <input
+                    type="number"
+                    value={efectivoRecibido}
+                    onChange={(e) => setEfectivoRecibido(e.target.value)}
+                    placeholder="0"
+                  />
+                  {efectivo >= totalVenta && efectivo > 0 && (
+                    <span className="cambio-mobile">Cambio: ${cambio.toFixed(2)}</span>
+                  )}
+                </div>
+              )}
+
+              <div className="total-mobile">
+                <span>TOTAL</span>
+                <strong>${totalVenta.toFixed(2)}</strong>
+              </div>
+
+              <div className="btns-mobile">
+                <button onClick={() => { setCarrito([]); setMostrarCarrito(false); }} className="btn-cancel-m">
+                  🗑️ Cancelar
+                </button>
+                <button 
+                  onClick={procesarVenta} 
+                  className="btn-cobrar-m"
+                  disabled={guardando || (metodoPago === 'Efectivo' && efectivo < totalVenta)}
+                >
+                  {guardando ? '⏳' : '💰 Cobrar'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sidebar para desktop */}
+      <aside className="sidebar-desktop">
         <div className="sidebar-header">
-          <Image src="/logo_estefany.jpg" alt="Hamburguesas Estefany" width={120} height={120} className="logo" />
+          <Image src="/logo_estefany.jpg" alt="Logo" width={100} height={100} className="logo" />
           <h1>Hamburguesas<br/>Estefany</h1>
         </div>
-        
         <nav className="sidebar-nav">
           <a href="/" className="nav-item activo">🏠 Ventas</a>
           <a href="/productos" className="nav-item">📦 Productos</a>
           <a href="/categorias" className="nav-item">🏷️ Categorías</a>
           <a href="/reportes" className="nav-item">📊 Reportes</a>
         </nav>
-
         <div className="sidebar-footer">
           <p>Sistema POS v1.0</p>
         </div>
       </aside>
 
-      {/* Contenido Principal */}
-      <div className="contenido-principal">
-        {/* Filtros de categoría */}
-        <header className="barra-categorias">
-          <button
-            onClick={() => setCategoriaSeleccionada(null)}
-            className={`chip-categoria ${categoriaSeleccionada === null ? 'activo' : ''}`}
-          >
-            🍽️ Todos
-          </button>
-          {categorias.map(cat => (
-            <button
-              key={cat.id}
-              onClick={() => setCategoriaSeleccionada(cat.id)}
-              className={`chip-categoria ${categoriaSeleccionada === cat.id ? 'activo' : ''}`}
-            >
-              {obtenerEmoji(cat.nombre)} {cat.nombre}
-            </button>
-          ))}
-        </header>
-
-        {/* Grid de productos */}
-        <section className="grid-productos">
-          {productos.length === 0 ? (
-            <div className="estado-vacio">
-              <span className="emoji-grande">📦</span>
-              <h3>No hay productos</h3>
-              <p>Agrega productos para empezar a vender</p>
-              <a href="/productos" className="boton-primario">➕ Agregar Productos</a>
-            </div>
-          ) : productosFiltrados.length === 0 ? (
-            <div className="estado-vacio">
-              <span className="emoji-grande">🔍</span>
-              <h3>Sin productos en esta categoría</h3>
-            </div>
-          ) : (
-            productosFiltrados.map(producto => (
-              <button 
-                key={producto.id} 
-                className="tarjeta-producto"
-                onClick={() => agregarAlCarrito(producto)}
-              >
-                <span className="producto-emoji">{obtenerEmoji(producto.categorias?.nombre || '')}</span>
-                <span className="producto-nombre">{producto.nombre}</span>
-                <span className="producto-precio">${producto.precio}</span>
-              </button>
-            ))
-          )}
-        </section>
-      </div>
-
-      {/* Panel del Carrito */}
-      <aside className="panel-carrito">
+      {/* Carrito para desktop */}
+      <aside className="carrito-desktop">
         <div className="carrito-header">
-          <h2>🛒 Orden Actual</h2>
-          <span className="carrito-count">{carrito.reduce((t, i) => t + i.cantidad, 0)}</span>
+          <h2>🛒 Orden</h2>
+          <span className="carrito-count">{totalItems}</span>
         </div>
 
         <div className="carrito-items">
           {carrito.length === 0 ? (
             <div className="carrito-vacio">
-              <span className="emoji-grande">🛒</span>
+              <span>🛒</span>
               <p>Carrito vacío</p>
-              <small>Selecciona productos del menú</small>
             </div>
           ) : (
             carrito.map(item => (
@@ -250,7 +346,7 @@ export default function PaginaPrincipal() {
                   <button onClick={() => agregarAlCarrito(item.producto)} className="btn-cantidad">+</button>
                 </div>
                 <div className="item-subtotal">
-                  <span>${item.subtotal.toFixed(2)}</span>
+                  <span>${item.subtotal}</span>
                   <button onClick={() => eliminarDelCarrito(item.producto.id)} className="btn-eliminar">×</button>
                 </div>
               </div>
@@ -259,60 +355,39 @@ export default function PaginaPrincipal() {
         </div>
 
         <div className="carrito-footer">
-          {/* Método de pago */}
           <div className="metodo-pago">
-            <label>Método de pago:</label>
+            <label>Pago:</label>
             <div className="metodo-opciones">
-              {(['Efectivo', 'Tarjeta', 'Transferencia'] as const).map(metodo => (
-                <button
-                  key={metodo}
-                  onClick={() => setMetodoPago(metodo)}
-                  className={`metodo-btn ${metodoPago === metodo ? 'activo' : ''}`}
-                >
-                  {metodo === 'Efectivo' ? '💵' : metodo === 'Tarjeta' ? '💳' : '📱'}
+              {(['Efectivo', 'Tarjeta', 'Transferencia'] as const).map(m => (
+                <button key={m} onClick={() => setMetodoPago(m)} className={`metodo-btn ${metodoPago === m ? 'activo' : ''}`}>
+                  {m === 'Efectivo' ? '💵' : m === 'Tarjeta' ? '💳' : '📱'}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Campo de efectivo */}
           {metodoPago === 'Efectivo' && (
             <div className="campo-pago">
               <label>💵 Paga con:</label>
               <div className="input-pago">
                 <span>$</span>
-                <input
-                  type="number"
-                  value={efectivoRecibido}
-                  onChange={(e) => setEfectivoRecibido(e.target.value)}
-                  placeholder="0"
-                />
+                <input type="number" value={efectivoRecibido} onChange={(e) => setEfectivoRecibido(e.target.value)} placeholder="0" />
               </div>
               {efectivo >= totalVenta && efectivo > 0 && (
-                <div className="cambio">
-                  <span>Cambio:</span>
-                  <strong>${cambio.toFixed(2)}</strong>
-                </div>
+                <div className="cambio"><span>Cambio:</span><strong>${cambio.toFixed(2)}</strong></div>
               )}
             </div>
           )}
 
-          {/* Total y botones */}
           <div className="total-venta">
             <span>TOTAL</span>
             <strong>${totalVenta.toFixed(2)}</strong>
           </div>
 
           <div className="botones-carrito">
-            <button onClick={() => { setCarrito([]); setEfectivoRecibido(''); }} className="btn-cancelar" disabled={carrito.length === 0}>
-              🗑️
-            </button>
-            <button 
-              onClick={procesarVenta} 
-              className="btn-cobrar"
-              disabled={guardando || carrito.length === 0 || (metodoPago === 'Efectivo' && efectivo < totalVenta)}
-            >
-              {guardando ? '⏳...' : '💰 COBRAR'}
+            <button onClick={() => { setCarrito([]); setEfectivoRecibido(''); }} className="btn-cancelar" disabled={carrito.length === 0}>🗑️</button>
+            <button onClick={procesarVenta} className="btn-cobrar" disabled={guardando || carrito.length === 0 || (metodoPago === 'Efectivo' && efectivo < totalVenta)}>
+              {guardando ? '⏳' : '💰 COBRAR'}
             </button>
           </div>
         </div>
