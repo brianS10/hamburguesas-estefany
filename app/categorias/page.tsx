@@ -7,7 +7,6 @@ import { supabase } from '@/lib/supabase';
 interface Categoria {
   id: number;
   nombre: string;
-  emoji?: string;
 }
 
 const EMOJIS_DISPONIBLES = [
@@ -24,7 +23,6 @@ const EMOJIS_DISPONIBLES = [
   { emoji: '🍦', nombre: 'Helados' },
   { emoji: '☕', nombre: 'Café' },
   { emoji: '🧃', nombre: 'Jugos' },
-  { emoji: '🍺', nombre: 'Cerveza' },
   { emoji: '🥪', nombre: 'Sandwiches' },
   { emoji: '🍱', nombre: 'Combos' },
   { emoji: '🍳', nombre: 'Desayunos' },
@@ -39,7 +37,8 @@ export default function PaginaCategorias() {
   const [emojiSeleccionado, setEmojiSeleccionado] = useState('🍽️');
   const [guardando, setGuardando] = useState(false);
   const [cargando, setCargando] = useState(true);
-  const [mostrarEmojis, setMostrarEmojis] = useState(false);
+  const [editandoId, setEditandoId] = useState<number | null>(null);
+  const [nombreEditando, setNombreEditando] = useState('');
 
   useEffect(() => { cargarCategorias(); }, []);
 
@@ -55,22 +54,30 @@ export default function PaginaCategorias() {
       return;
     }
     setGuardando(true);
-    
-    // Guardamos el nombre con el emoji al inicio
-    const nombreConEmoji = `${emojiSeleccionado} ${nombre.trim()}`;
-    
-    const { error } = await supabase.from('categorias').insert({ 
-      nombre: nombre.trim()
-    });
-    
+    const { error } = await supabase.from('categorias').insert({ nombre: nombre.trim() });
     if (error) alert('❌ Error: ' + error.message);
     else {
       setNombre('');
       setEmojiSeleccionado('🍽️');
-      setMostrarEmojis(false);
       cargarCategorias();
     }
     setGuardando(false);
+  };
+
+  const iniciarEdicion = (cat: Categoria) => {
+    setEditandoId(cat.id);
+    setNombreEditando(cat.nombre);
+  };
+
+  const guardarEdicion = async () => {
+    if (!nombreEditando.trim() || !editandoId) return;
+    const { error } = await supabase.from('categorias').update({ nombre: nombreEditando.trim() }).eq('id', editandoId);
+    if (error) alert('❌ Error: ' + error.message);
+    else {
+      setEditandoId(null);
+      setNombreEditando('');
+      cargarCategorias();
+    }
   };
 
   const eliminarCategoria = async (id: number, nombreCat: string) => {
@@ -98,83 +105,103 @@ export default function PaginaCategorias() {
   };
 
   if (cargando) return (
-    <main className="pagina"><div className="pantalla-carga"><div className="spinner"></div><p>Cargando...</p></div></main>
+    <main className="cat-page"><div className="pantalla-carga"><div className="spinner"></div><p>Cargando...</p></div></main>
   );
 
   return (
-    <main className="pagina">
-      <header className="pagina-header">
-        <Image src="/logo_estefany.jpg" alt="Logo" width={70} height={70} className="logo" />
-        <h1>🏷️ Categorías</h1>
-        <a href="/" className="btn-volver">← Volver</a>
+    <main className="cat-page">
+      {/* Header */}
+      <header className="cat-header">
+        <a href="/" className="cat-back">←</a>
+        <div className="cat-title">
+          <Image src="/logo_estefany.jpg" alt="Logo" width={40} height={40} className="cat-logo" />
+          <h1>Categorías</h1>
+        </div>
+        <span className="cat-count">{categorias.length}</span>
       </header>
 
-      <section className="formulario-card">
-        <h2>➕ Agregar Categoría</h2>
+      {/* Formulario agregar */}
+      <section className="cat-form">
+        <h2>➕ Nueva Categoría</h2>
         
-        <div className="selector-emoji-container">
-          <div className="campo-con-emoji">
-            <button 
-              type="button"
-              className="btn-emoji-selector"
-              onClick={() => setMostrarEmojis(!mostrarEmojis)}
-            >
-              <span className="emoji-actual">{emojiSeleccionado}</span>
-              <span className="emoji-label">Icono</span>
-            </button>
-            
-            <input
-              type="text"
-              value={nombre}
-              onChange={(e) => setNombre(e.target.value)}
-              placeholder="Nombre de la categoría"
-              className="input-categoria"
-            />
-            
-            <button onClick={agregarCategoria} disabled={guardando} className="btn-agregar">
-              {guardando ? '⏳' : '✓ Agregar'}
-            </button>
+        <div className="cat-form-row">
+          <div className="emoji-selector">
+            <span className="emoji-preview">{emojiSeleccionado}</span>
           </div>
-          
-          {mostrarEmojis && (
-            <div className="emoji-picker">
-              <p className="emoji-picker-titulo">Selecciona un icono:</p>
-              <div className="emoji-grid">
-                {EMOJIS_DISPONIBLES.map(({ emoji, nombre }) => (
-                  <button
-                    key={emoji}
-                    type="button"
-                    className={`emoji-opcion ${emojiSeleccionado === emoji ? 'seleccionado' : ''}`}
-                    onClick={() => { setEmojiSeleccionado(emoji); setMostrarEmojis(false); }}
-                    title={nombre}
-                  >
-                    {emoji}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+          <input
+            type="text"
+            value={nombre}
+            onChange={(e) => setNombre(e.target.value)}
+            placeholder="Nombre de categoría"
+            className="cat-input"
+            onKeyDown={(e) => e.key === 'Enter' && agregarCategoria()}
+          />
+          <button onClick={agregarCategoria} disabled={guardando} className="cat-btn-add">
+            {guardando ? '⏳' : '✓'}
+          </button>
+        </div>
+
+        <div className="emoji-list">
+          {EMOJIS_DISPONIBLES.map(({ emoji, nombre }) => (
+            <button
+              key={emoji}
+              type="button"
+              className={`emoji-opt ${emojiSeleccionado === emoji ? 'selected' : ''}`}
+              onClick={() => setEmojiSeleccionado(emoji)}
+              title={nombre}
+            >
+              {emoji}
+            </button>
+          ))}
         </div>
       </section>
 
-      <section className="lista-card">
-        <h2>📋 Categorías ({categorias.length})</h2>
+      {/* Lista de categorías */}
+      <section className="cat-list">
+        <h2>📋 Tus Categorías</h2>
+        
         {categorias.length === 0 ? (
-          <div className="estado-vacio">
-            <span className="emoji-grande">🏷️</span>
-            <h3>No hay categorías</h3>
-            <p>Agrega tu primera categoría arriba</p>
+          <div className="cat-empty">
+            <span>🏷️</span>
+            <p>No hay categorías</p>
+            <small>Agrega tu primera categoría arriba</small>
           </div>
         ) : (
-          <div className="grid-categorias">
+          <div className="cat-grid">
             {categorias.map(cat => (
-              <div key={cat.id} className="categoria-card">
-                <span className="categoria-emoji">{obtenerEmoji(cat.nombre)}</span>
-                <span className="categoria-nombre">{cat.nombre}</span>
-                <span className="categoria-id">ID: {cat.id}</span>
-                <button onClick={() => eliminarCategoria(cat.id, cat.nombre)} className="btn-eliminar-cat">
-                  🗑️
-                </button>
+              <div key={cat.id} className="cat-card">
+                <span className="cat-card-emoji">{obtenerEmoji(cat.nombre)}</span>
+                
+                {editandoId === cat.id ? (
+                  <div className="cat-card-edit">
+                    <input
+                      type="text"
+                      value={nombreEditando}
+                      onChange={(e) => setNombreEditando(e.target.value)}
+                      className="cat-edit-input"
+                      autoFocus
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') guardarEdicion();
+                        if (e.key === 'Escape') setEditandoId(null);
+                      }}
+                    />
+                    <div className="cat-edit-btns">
+                      <button onClick={guardarEdicion} className="cat-btn-save">✓</button>
+                      <button onClick={() => setEditandoId(null)} className="cat-btn-cancel">✕</button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="cat-card-info">
+                      <span className="cat-card-name">{cat.nombre}</span>
+                      <span className="cat-card-id">ID: {cat.id}</span>
+                    </div>
+                    <div className="cat-card-actions">
+                      <button onClick={() => iniciarEdicion(cat)} className="cat-btn-edit">✏️</button>
+                      <button onClick={() => eliminarCategoria(cat.id, cat.nombre)} className="cat-btn-del">🗑️</button>
+                    </div>
+                  </>
+                )}
               </div>
             ))}
           </div>

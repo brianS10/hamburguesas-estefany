@@ -13,8 +13,11 @@ export default function PaginaProductos() {
   const [categoriaId, setCategoriaId] = useState<number>(1);
   const [guardando, setGuardando] = useState(false);
   const [cargando, setCargando] = useState(true);
-  const [editando, setEditando] = useState<number | null>(null);
-  const [precioEditando, setPrecioEditando] = useState('');
+  const [editandoId, setEditandoId] = useState<number | null>(null);
+  const [nombreEdit, setNombreEdit] = useState('');
+  const [precioEdit, setPrecioEdit] = useState('');
+  const [categoriaEdit, setCategoriaEdit] = useState<number>(1);
+  const [eliminando, setEliminando] = useState<number | null>(null);
 
   useEffect(() => { cargarDatos(); }, []);
 
@@ -48,93 +51,227 @@ export default function PaginaProductos() {
   };
 
   const iniciarEdicion = (prod: Producto) => {
-    setEditando(prod.id);
-    setPrecioEditando(prod.precio.toString());
+    setEditandoId(prod.id);
+    setNombreEdit(prod.nombre);
+    setPrecioEdit(prod.precio.toString());
+    setCategoriaEdit(prod.categoria_id);
   };
 
-  const guardarPrecio = async (id: number) => {
-    const nuevoPrecio = parseFloat(precioEditando);
+  const cancelarEdicion = () => {
+    setEditandoId(null);
+    setNombreEdit('');
+    setPrecioEdit('');
+  };
+
+  const guardarEdicion = async () => {
+    if (!nombreEdit.trim() || !precioEdit || !editandoId) {
+      alert('⚠️ Completa todos los campos');
+      return;
+    }
+
+    const nuevoPrecio = parseFloat(precioEdit);
     if (isNaN(nuevoPrecio) || nuevoPrecio <= 0) {
       alert('⚠️ Precio inválido');
       return;
     }
-    const { error } = await supabase.from('productos').update({ precio: nuevoPrecio }).eq('id', id);
-    if (error) alert('❌ Error: ' + error.message);
-    else {
-      setEditando(null);
+
+    setGuardando(true);
+    const { error } = await supabase
+      .from('productos')
+      .update({ 
+        nombre: nombreEdit.trim(), 
+        precio: nuevoPrecio,
+        categoria_id: categoriaEdit
+      })
+      .eq('id', editandoId);
+
+    if (error) {
+      alert('❌ Error: ' + error.message);
+    } else {
+      cancelarEdicion();
       cargarDatos();
+    }
+    setGuardando(false);
+  };
+
+  const eliminarProducto = async (id: number, nombreProd: string) => {
+    if (!confirm(`¿Eliminar "${nombreProd}"?\n\nEsta acción no se puede deshacer.`)) return;
+    
+    setEliminando(id);
+    
+    try {
+      // Primero eliminar los detalles de venta relacionados
+      const { error: errorDetalles } = await supabase
+        .from('detalle_ventas')
+        .delete()
+        .eq('producto_id', id);
+      
+      if (errorDetalles) {
+        console.error('Error eliminando detalles:', errorDetalles);
+        // Continuar de todos modos
+      }
+
+      // Ahora eliminar el producto
+      const { error } = await supabase
+        .from('productos')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        alert('❌ Error al eliminar: ' + error.message);
+      } else {
+        cargarDatos();
+      }
+    } catch (err) {
+      console.error('Error:', err);
+      alert('❌ Error al eliminar el producto');
+    } finally {
+      setEliminando(null);
     }
   };
 
-  const eliminarProducto = async (id: number, nombre: string) => {
-    if (!confirm(`¿Eliminar "${nombre}"?`)) return;
-    await supabase.from('productos').delete().eq('id', id);
-    cargarDatos();
+  const obtenerEmoji = (nombre: string) => {
+    const emojis: Record<string, string> = {
+      'Hamburguesas': '🍔', 'Alitas': '🍗', 'Tacos': '🌮', 'Bebidas': '🥤', 'Extras': '🍟'
+    };
+    return emojis[nombre] || '🍽️';
   };
 
   if (cargando) return (
-    <main className="pagina"><div className="pantalla-carga"><div className="spinner"></div><p>Cargando...</p></div></main>
+    <main className="prod-page"><div className="pantalla-carga"><div className="spinner"></div><p>Cargando...</p></div></main>
   );
 
   return (
-    <main className="pagina">
-      <header className="pagina-header">
-        <Image src="/logo_estefany.jpg" alt="Logo" width={80} height={80} className="logo" />
-        <h1>📦 Productos</h1>
-        <a href="/" className="btn-volver">← Volver</a>
+    <main className="prod-page">
+      {/* Header */}
+      <header className="prod-header">
+        <a href="/" className="prod-back">←</a>
+        <div className="prod-title">
+          <Image src="/logo_estefany.jpg" alt="Logo" width={40} height={40} className="prod-logo" />
+          <h1>Productos</h1>
+        </div>
+        <span className="prod-count">{productos.length}</span>
       </header>
 
-      <section className="formulario-card">
-        <h2>➕ Agregar Producto</h2>
-        <div className="formulario-grid">
-          <div className="campo">
+      {/* Formulario agregar */}
+      <section className="prod-form">
+        <h2>➕ Nuevo Producto</h2>
+        
+        <div className="prod-form-grid">
+          <div className="prod-field">
             <label>Nombre</label>
-            <input type="text" value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej: Hamburguesa Especial" />
+            <input
+              type="text"
+              value={nombre}
+              onChange={(e) => setNombre(e.target.value)}
+              placeholder="Ej: Hamburguesa Especial"
+            />
           </div>
-          <div className="campo">
+          
+          <div className="prod-field">
             <label>Precio</label>
-            <input type="number" value={precio} onChange={(e) => setPrecio(e.target.value)} placeholder="0" />
+            <input
+              type="number"
+              value={precio}
+              onChange={(e) => setPrecio(e.target.value)}
+              placeholder="0"
+            />
           </div>
-          <div className="campo">
+          
+          <div className="prod-field">
             <label>Categoría</label>
             <select value={categoriaId} onChange={(e) => setCategoriaId(Number(e.target.value))}>
-              {categorias.map(cat => (<option key={cat.id} value={cat.id}>{cat.nombre}</option>))}
+              {categorias.map(cat => (
+                <option key={cat.id} value={cat.id}>{obtenerEmoji(cat.nombre)} {cat.nombre}</option>
+              ))}
             </select>
           </div>
-          <button onClick={agregarProducto} disabled={guardando} className="btn-agregar">
-            {guardando ? '⏳' : '✓ Agregar'}
-          </button>
         </div>
+
+        <button onClick={agregarProducto} disabled={guardando} className="prod-btn-add">
+          {guardando ? '⏳ Guardando...' : '✓ Agregar Producto'}
+        </button>
       </section>
 
-      <section className="lista-card">
-        <h2>📋 Productos ({productos.length})</h2>
+      {/* Lista de productos */}
+      <section className="prod-list">
+        <h2>📋 Tus Productos</h2>
+        
         {productos.length === 0 ? (
-          <div className="estado-vacio"><span className="emoji-grande">📦</span><h3>No hay productos</h3></div>
+          <div className="prod-empty">
+            <span>📦</span>
+            <p>No hay productos</p>
+            <small>Agrega tu primer producto arriba</small>
+          </div>
         ) : (
-          <div className="tabla-productos-admin">
+          <div className="prod-grid">
             {productos.map(prod => (
-              <div key={prod.id} className="producto-fila">
-                <span className="producto-fila-nombre">{prod.nombre}</span>
-                <span className="producto-fila-categoria">{prod.categorias?.nombre}</span>
-                {editando === prod.id ? (
-                  <div className="editar-precio">
-                    <input
-                      type="number"
-                      value={precioEditando}
-                      onChange={(e) => setPrecioEditando(e.target.value)}
-                      className="input-precio-edit"
-                      autoFocus
-                    />
-                    <button onClick={() => guardarPrecio(prod.id)} className="btn-guardar-precio">✓</button>
-                    <button onClick={() => setEditando(null)} className="btn-cancelar-precio">✕</button>
+              <div key={prod.id} className={`prod-card ${editandoId === prod.id ? 'editando' : ''}`}>
+                {editandoId === prod.id ? (
+                  // Modo edición
+                  <div className="prod-card-edit">
+                    <div className="prod-edit-fields">
+                      <input
+                        type="text"
+                        value={nombreEdit}
+                        onChange={(e) => setNombreEdit(e.target.value)}
+                        placeholder="Nombre"
+                        className="prod-edit-input"
+                        autoFocus
+                      />
+                      <div className="prod-edit-row">
+                        <input
+                          type="number"
+                          value={precioEdit}
+                          onChange={(e) => setPrecioEdit(e.target.value)}
+                          placeholder="Precio"
+                          className="prod-edit-input precio"
+                        />
+                        <select 
+                          value={categoriaEdit} 
+                          onChange={(e) => setCategoriaEdit(Number(e.target.value))}
+                          className="prod-edit-select"
+                        >
+                          {categorias.map(cat => (
+                            <option key={cat.id} value={cat.id}>{cat.nombre}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    <div className="prod-edit-actions">
+                      <button onClick={guardarEdicion} className="prod-btn_save" disabled={guardando}>
+                        {guardando ? '⏳' : '✓ Guardar'}
+                      </button>
+                      <button onClick={cancelarEdicion} className="prod-btn-cancel">
+                        ✕ Cancelar
+                      </button>
+                    </div>
                   </div>
                 ) : (
-                  <span className="producto-fila-precio" onClick={() => iniciarEdicion(prod)}>
-                    ${prod.precio} ✏️
-                  </span>
+                  // Modo visualización
+                  <>
+                    <div className="prod-card-info">
+                      <span className="prod-card-emoji">{obtenerEmoji(prod.categorias?.nombre || '')}</span>
+                      <div className="prod-card-data">
+                        <span className="prod-card-name">{prod.nombre}</span>
+                        <span className="prod-card-cat">{prod.categorias?.nombre || 'Sin categoría'}</span>
+                      </div>
+                      <span className="prod-card-price">${prod.precio}</span>
+                    </div>
+                    <div className="prod-card-actions">
+                      <button onClick={() => iniciarEdicion(prod)} className="prod-btn-edit">
+                        ✏️ Editar
+                      </button>
+                      <button 
+                        onClick={() => eliminarProducto(prod.id, prod.nombre)} 
+                        className="prod-btn-del"
+                        disabled={eliminando === prod.id}
+                      >
+                        {eliminando === prod.id ? '⏳' : '🗑️ Eliminar'}
+                      </button>
+                    </div>
+                  </>
                 )}
-                <button onClick={() => eliminarProducto(prod.id, prod.nombre)} className="btn-eliminar-prod">🗑️</button>
               </div>
             ))}
           </div>

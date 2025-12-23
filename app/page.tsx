@@ -308,6 +308,7 @@ export default function PaginaPrincipal() {
           {!online && <span className="status-dot offline"></span>}
         </div>
         <nav className="nav-mobile">
+          <a href="/categorias" className="nav-btn">🏷️</a>
           <a href="/productos" className="nav-btn">📦</a>
           <a href="/reportes" className="nav-btn">📊</a>
         </nav>
